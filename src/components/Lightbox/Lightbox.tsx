@@ -1,12 +1,16 @@
+import '@babel/polyfill';
 import { FC, useContext, useState, useEffect } from 'react';
 import FileSaver from 'file-saver';
 
 import PodContext from '@context/PodContext';
 
 import { downloadFile, FileResponse } from '@api/files';
+import { switchNetwork, mintNFT } from '@api/nft';
 
 import CloseIcon from '@media/UI/close.svg';
 import { Button } from '@components/Buttons';
+import FeedbackMessage from '@components/FeedbackMessage/FeedbackMessage';
+declare let window: any;
 
 interface LightboxProps {
   showLightbox: boolean;
@@ -23,6 +27,8 @@ const Lightbox: FC<LightboxProps> = ({
 
   const [imageResponse, setImageResponse] = useState(null);
   const [imageSource, setImageSource] = useState(null);
+  const [disableButton, setDisableButton] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     downloadFile({
@@ -41,6 +47,23 @@ const Lightbox: FC<LightboxProps> = ({
 
   const handleDownloadClick = () => {
     FileSaver.saveAs(imageResponse, image?.name);
+  };
+
+  const handleMintClick = async () => {
+    if (window.ethereum) {
+      try {
+        setDisableButton(true);
+        await switchNetwork();
+        await mintNFT(imageResponse, image?.name);
+        setDisableButton(false);
+      } catch (error) {
+        console.log(error);
+        setDisableButton(false);
+        return error;
+      }
+    } else {
+      setErrorMessage('To mint an NFT, please install MetaMask.');
+    }
   };
 
   return (
@@ -81,13 +104,24 @@ const Lightbox: FC<LightboxProps> = ({
                       alt={image.name}
                       className="block w-108 h-auto mb-4"
                     />
-
+                    <div className="mb-5 text-center">
+                      <FeedbackMessage type="error" message={errorMessage} />
+                    </div>
                     <div className="text-center">
                       <Button
                         type="button"
                         variant="secondary"
                         label="Download Image"
                         onClick={handleDownloadClick}
+                      />
+                    </div>
+                    <div className="text-center mt-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        label="Mint NFT"
+                        onClick={handleMintClick}
+                        disabled={disableButton}
                       />
                     </div>
                   </div>
